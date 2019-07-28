@@ -1,0 +1,150 @@
+---
+title: "John's Titanic @ Kaggle Notebook"
+output: html_notebook
+---
+
+Let's read in the training data and take quick look
+
+```{r}
+train_data <- read.table("train.csv",header=TRUE,sep=",",na.strings="")
+str(train_data)
+```
+
+Here is a variable glossary taken from elsewhere
+
+Variable Name | Description
+--------------|-------------
+Survived      | Survived (1) or died (0)
+Pclass        | Passenger's class
+Name          | Passenger's name
+Sex           | Passenger's sex
+Age           | Passenger's age
+SibSp         | Number of siblings/spouses aboard
+Parch         | Number of parents/children aboard
+Ticket        | Ticket number
+Fare          | Fare
+Cabin         | Cabin
+Embarked      | Port of embarkation
+
+## Feature Engineering
+
+I'm following an example. In that example they grab more features from the full name.
+
+### Title 
+
+```{r}
+# Grab title from passenger names
+train_data$Title <- gsub('(.*, )|(\\..*)', '', train_data$Name)
+
+# Show title counts by sex (before)
+table(train_data$Sex, train_data$Title)
+
+# Clean up titles
+train_data$Title[train_data$Title == 'Mlle'] <- 'Miss' 
+train_data$Title[train_data$Title == 'Mme'] <- 'Miss' 
+train_data$Title[train_data$Title == 'Ms'] <- 'Miss' 
+#
+train_data$Title[train_data$Title == 'Capt'] <- 'Officer' 
+train_data$Title[train_data$Title == 'Col'] <- 'Officer' 
+train_data$Title[train_data$Title == 'Major'] <- 'Officer' 
+#
+train_data$Title[train_data$Title == 'Don'] <- 'Royal' 
+train_data$Title[train_data$Title == 'Lady'] <- 'Royal' 
+train_data$Title[train_data$Title == 'Sir'] <- 'Royal' 
+train_data$Title[train_data$Title == 'the Countess'] <- 'Royal' 
+#
+train_data$Title[train_data$Title == 'Dr'] <- 'Professional' 
+train_data$Title[train_data$Title == 'Jonkheer'] <- 'Professional' 
+train_data$Title[train_data$Title == 'Rev'] <- 'Professional' 
+
+# Show title counts by sex (after)
+table(train_data$Sex, train_data$Title)
+
+```
+
+### Surname
+
+```{r}
+# function to get surname
+get_surname <- function(x) {
+  strsplit(as.character(x),"[,.]")[[1]][1]
+}
+
+# populate new variable
+train_data$Surname <- sapply(train_data$Name,get_surname)
+
+# sample results
+table(train_data[seq(1,25),c("Surname")],useNA="always")
+
+# make sure no null's
+length(train_data[is.na(train_data$Surname)])
+```
+
+### Family
+
+Again following example we calculate a family size feature and another variable which is surname with family size
+
+```{r}
+#calculate family size
+train_data$FamilySize <- train_data$SibSp + train_data$Parch + 1
+table(train_data$FamilySize)
+#build family name + size variable
+train_data$FamilyInfo <- paste(train_data$Surname,train_data$FamilySize,sep="_")
+#sample results
+train_data[seq(1,10),c("Surname","FamilySize","FamilyInfo")]
+```
+
+Let's plot this data
+
+```{r, message=FALSE, warning=FALSE}
+#plot familly size and surivale details
+library(ggplot2)
+ggplot(train_data, aes(x = FamilySize, fill = factor(Survived))) +
+  geom_bar(stat='count', position='dodge') +
+  scale_x_continuous(breaks=c(1:11)) +
+  labs(x = 'Family Size') 
+```
+
+Still following the example we leverage chart above to see some categories or discrete levels which may be helpful to instantiate
+
+```{r}
+#discretize family size
+train_data$FamilySizeClass[train_data$FamilySize == 1] <- 'singleton'
+train_data$FamilySizeClass[
+  train_data$FamilySize < 5 & train_data$FamilySize> 1
+] <- 'small'
+train_data$FamilySizeClass[train_data$FamilySize > 4] <- 'large'
+
+#show family size by survival using a mosaic plot
+mosaicplot(
+  table(train_data$FamilySizeClass, train_data$Survived), 
+  main='Family Size by Survival',
+  shade=TRUE
+)
+
+#similar plot with ggplot
+ggplot(data=train_data) + stat_count(aes(FamilySizeClass,fill=factor(Survived)),position="dodge")
+```
+
+### Cabin Class
+
+The example talks about cabin class, I had a prior implementation will use
+
+```{r}
+train_data$CabinClass <- as.factor(
+  ifelse(
+    grepl(" ",train_data$Cabin,fixed=TRUE),
+    paste(substr(train_data$Cabin,1,1),substr(train_data$Cabin,1,1),sep=""),
+    substr(train_data$Cabin,1,1)
+  )
+)
+table(train_data$CabinClass)
+```
+
+## Missing Data
+
+Following the example here. This is interesting to me as I haven't seen this technique before.
+
+```{r}
+asdf
+```
